@@ -32,6 +32,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <Keypad.h>
 
 #include "pitches.h"
+//Here you can define you PIN code for your SIM card. If your SIM card doesn't need one, you can just define it as "0".
+#define PINNUMBER "YOUR_PIN_NUMBER"
 
 int ringTone[] =          { NOTE_E5, NOTE_D5, NOTE_F4, NOTE_G4, NOTE_C5, NOTE_B5, NOTE_D4, NOTE_E4, NOTE_B5, NOTE_A5, NOTE_C4, NOTE_E4, NOTE_A5, 0 };
 int ringToneDurations[] = { 250,     250,     500,     500,     250,     250,     500,     500,     250,     250,     500,     500,     1000,    1000 };
@@ -213,7 +215,7 @@ void setup() {
   delay(12000);
   digitalWrite(19, HIGH);
   
-  while (gsmAccess.begin(0, false) != GSM_READY) {
+  while (gsmAccess.begin(PINNUMBER, false) != GSM_READY) {
     delay(1000);
   }
   screen.println("connected.");
