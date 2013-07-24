@@ -25,6 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <GSM3ClockService.h>
 #include <GSM3VolumeService.h>
 #include <GSM3DTMF.h>
+#include <GSM3Ringer.h>
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_PCD8544.h>
@@ -46,6 +47,7 @@ GSMScanner scannerNetworks;
 GSM3ClockService clock;
 GSM3VolumeService volume;
 GSM3DTMF dtmf;
+GSM3Ringer ringer
 PhoneBook pb;
 
 #define SCREEN_WIDTH 14
@@ -87,7 +89,7 @@ DateTime missedDateTime;
 
 GSM3_voiceCall_st prevVoiceCallStatus;
 
-enum Mode { NOMODE, TEXTALERT, MISSEDCALLALERT, LOCKED, HOME, DIAL, PHONEBOOK, EDITENTRY, EDITTEXT, MENU, MISSEDCALLS, RECEIVEDCALLS, DIALEDCALLS, TEXTS, SETTIME };
+enum Mode { NOMODE, TEXTALERT, MISSEDCALLALERT, LOCKED, HOME, DIAL, PHONEBOOK, EDITENTRY, EDITTEXT, MENU, MISSEDCALLS, RECEIVEDCALLS, DIALEDCALLS, TEXTS, SETTIME, SETRINGTONE };
 Mode mode = LOCKED, prevmode, backmode = mode, interruptedmode = mode;
 boolean initmode, back, fromalert;
 
@@ -102,6 +104,7 @@ menuentry_t mainmenu[] = {
   { "Received calls", RECEIVEDCALLS, 0 },
   { "Dialed calls", DIALEDCALLS, 0 },
   { "Set date+time", SETTIME, 0 },
+  { "Set ringtone", SETRINGTONE, 0 },
 };
 
 menuentry_t phoneBookEntryMenu[] = {
@@ -184,6 +187,15 @@ int setTimeValues[7]; // month, day, year (tens), year (ones), hour, minute (ten
 int setTimeMin[7] = {  1,  1, 0, 0,  1, 0, 0 };
 int setTimeMax[7] = { 12, 31, 9, 9, 24, 9, 9 };
 char *setTimeSeparators[7] = { "/", "/", "", " ", ":", "", "" };
+
+//code to define a ringtone and to set its volume
+int setRingtoneMin[2] = {1,0};
+int setRingtoneMax[2] = {5,100};
+int ringtoneIds[5] = {6,7,8,9,10};
+int setRingtoneValues[2];
+int setRingtoneField;
+char *setRingtonePre[2] = { "Ringtone: ", "Volume: " };
+char *setRingtoneSeparators[2] = { "/5", "" };
 
 boolean unlocking, blank;
 
@@ -619,6 +631,63 @@ void loop() {
             clock.checkTime();
             while (!clock.ready());
             lastClockCheckTime = millis();
+            mode = HOME;
+          }
+        }
+      } else if (mode == SETRINGTONE) {
+        if (initmode) {
+          if(ringer.getRinger() != 0){
+            int wantedval = ringer.getRinger();
+            int wantedpos;
+            for (int i=0; i<sizeof(ringtoneIds); i++) {
+               if (wantedval == ringtoneIds[i]) {
+                 wantedpos = i;
+                 break;
+               }
+            }
+            setRingtoneValues[0] = wantedpos+1;
+          }else{
+            setRingtoneValues[0] = 1;
+          }
+          //
+          setRingtoneValues[1] = ringer.getVolume();
+          if(setRingtoneValues[1] == 0){
+            setRingtoneValues[1] = 100;
+          }
+          setRingtoneField = 0;
+        }
+        
+        for (int i = 0; i < 2; i++) {
+          screen.print(setRingtonePre[i]);
+          if (i == setRingtoneField) screen.setTextColor(WHITE, BLACK);
+          screen.print(setRingtoneValues[i]);
+          screen.setTextColor(BLACK);
+          screen.print(setRingtoneSeparators[i]);
+          screen.println();
+        } 
+        
+        if (setRingtoneField == 1) softKeys("cancel", "set");
+        else softKeys("cancel", "next");;
+        
+        if (key == 'L') mode = HOME;
+        
+        if (key == 'U') {
+          setRingtoneValues[setRingtoneField]++;
+          if (setRingtoneValues[setRingtoneField] > setRingtoneMax[setRingtoneField]) setRingtoneValues[setRingtoneField] = setRingtoneMin[setRingtoneField];
+        }
+        
+        if (key == 'D') {
+          setRingtoneValues[setRingtoneField]--;
+          if (setRingtoneValues[setRingtoneField] < setRingtoneMin[setRingtoneField]) setRingtoneValues[setRingtoneField] = setRingtoneMax[setRingtoneField];
+        }
+        
+        if (key == 'R') {
+          setRingtoneField++;
+          if(setRingtoneField == 2){
+            ringer.setRinger(ringtoneIds[setRingtoneValues[0]-1]);
+            ringer.setVolume(setRingtoneValues[1]);
+            //Not sure if there needs to be a delay at all, or if it needs something like in SETTIME
+            delay(300);
             mode = HOME;
           }
         }
